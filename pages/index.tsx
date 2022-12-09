@@ -22,7 +22,7 @@ export default function Home() {
 
   console.log('DATA', users, games);
 
-  const onSubmit = async (e) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await RoomService.addPlayerToRoom(inviteCode, name);

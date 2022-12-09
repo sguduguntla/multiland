@@ -1,7 +1,7 @@
 import { collection, onSnapshot } from 'firebase/firestore';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import db from '../../../lib/firebase';
 import { GameService } from '../../../lib/services/Game';
@@ -39,7 +39,7 @@ function Room() {
 
   console.log(players);
 
-  const startGame = async (e) => {
+  const startGame = async (e: React.MouseEvent) => {
     try {
       const game = await GameService.createGame(room.id, 'palace');
       router.push(`/rooms/${inviteCode}/games/${game.id}`);
@@ -48,7 +48,7 @@ function Room() {
     }
   };
 
-  const renderPlayer = (player, i) => {
+  const renderPlayer = (player: any, i: number) => {
     return (
       <div
         key={i}

@@ -15,6 +15,16 @@ export class RoomService {
         return room;
     }
 
+    static async getPlayers(roomId: string): Promise<any[]> {
+        const querySnapshot = await getDocs(collection(db, `rooms/${roomId}/players`));
+        const data: any[] = [];
+        querySnapshot.forEach((doc) => {
+            // doc.data() is never undefined for query doc snapshots
+            data.push({ id: doc.id, ...doc.data() });
+        });
+        return data;
+    }
+
     // ...
     static async addPlayerToRoom(inviteCode: string, playerName: string): Promise<void> {
         const room = await this.getRoomByInviteCode(inviteCode);

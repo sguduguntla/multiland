@@ -1,7 +1,10 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import { useEffect } from 'react';
 import useSWR from 'swr';
+import useWindowDimensions from '../../../../hooks/useWindowDimensions';
+import { getCollectionFetcher, getDocFetcher } from '../../../../lib/firebase';
+import { Palace } from '../../../../lib/services/palace/Palace';
 import { RoomService } from '../../../../lib/services/Room';
 
 const fetcher = async (key: string, inviteCode: string) => {
@@ -10,16 +13,29 @@ const fetcher = async (key: string, inviteCode: string) => {
 
 function Game() {
   const router = useRouter();
-  const { inviteCode } = router.query;
-  const { data: room, error } = useSWR(
+  const { height, width } = useWindowDimensions();
+  const WINDOW_HEIGHT = height as number;
+  const WINDOW_WIDTH = width as number;
+  const { id, inviteCode } = router.query;
+  const { data: room, error: roomError } = useSWR(
     ['roomByInviteCode', inviteCode],
     fetcher
   );
-  const [players, setPlayers] = useState<any[]>([]);
+  const { data: game, error: gameError } = useSWR(`games/${id}`, getDocFetcher);
+  const { data: players, error: playersError } = useSWR(
+    game?.id ? `games/${game.id}/players` : null,
+    getCollectionFetcher
+  );
+
+  useEffect(() => {
+    if (game?.id) {
+      Palace.init(game?.id);
+    }
+  }, [game?.id]);
 
   console.log(players);
 
-  const renderPlayer = (player, i) => {
+  const renderPlayer = (player: any, i: number) => {
     return (
       <div
         key={i}
@@ -30,9 +46,18 @@ function Game() {
     );
   };
 
-  if (!room) {
+  if (!room || !players?.length || !game) {
     return <div>loading...</div>;
   }
+
+  const p1 = players[0];
+  const p2 = players[1];
+
+  console.log(players);
+
+  const renderHand = () => {
+    return <div></div>;
+  };
 
   return (
     <div className="flex justify-center items-center">
@@ -41,17 +66,36 @@ function Game() {
         <meta name="description" content="Multiland!" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className="flex flex-1 flex-col justify-center items-center max-w-3xl min-h-screen">
-        <h1 className="text-5xl">Welcome to {room?.name || ''}</h1>
+      <main className="flex flex-1 flex-col items-center w-full min-h-screen">
+        <div
+          className="rounded-lg relative border m-0 p-0"
+          style={{ width: WINDOW_HEIGHT, height: WINDOW_HEIGHT }}
+        >
+          <div
+            className="absolute top-0 text-center text-white flex items-center justify-center"
+            style={{
+              width: 100,
+              height: 100,
+              left: WINDOW_HEIGHT / 2 - 50,
+            }}
+          >
+            <h1 className="text-2xl">{p1.name}</h1>
+            {renderHand()}
+          </div>
+          <div
+            className="absolute bg-red-500 bottom-0 rounded-full text-center text-white flex items-center justify-center"
+            style={{
+              width: 100,
+              height: 100,
+              left: WINDOW_HEIGHT / 2 - 50,
+            }}
+          >
+            <h1 className="text-2xl">{p2.name}</h1>
+          </div>
+        </div>
         <div className="flex mt-8 w-3/4 flex-wrap">
           {players.map(renderPlayer)}
         </div>
-        <button
-          className="shadow bg-purple-500 hover:bg-purple-400 focus:shadow-outline focus:outline-none text-white font-bold py-8 px-8 text-xl rounded-full mt-8"
-          type="submit"
-        >
-          Start game
-        </button>
       </main>
     </div>
   );

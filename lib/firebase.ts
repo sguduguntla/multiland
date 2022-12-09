@@ -1,4 +1,4 @@
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
@@ -28,6 +28,12 @@ export const getCollectionFetcher = async (url: string) => {
         // doc.data() is never undefined for query doc snapshots
         data.push({ id: doc.id, ...doc.data() });
     });
+    return data;
+};
+
+export const getDocFetcher = async (url: string) => {
+    const resDoc = await getDoc(doc(db, url));
+    const data = { id: resDoc.id, ...resDoc.data() };
     return data;
 };
 
