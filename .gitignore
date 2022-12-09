@@ -18,6 +18,7 @@
 # misc
 .DS_Store
 *.pem
+multiland-a4985-firebase-adminsdk-8iyzn-6439cc91f4.json
 
 # debug
 npm-debug.log*
