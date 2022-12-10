@@ -7,7 +7,7 @@ export class Deck {
 
     constructor(...args: any[]) {
         if (args.length === 1) {
-            const serializedCards = args[1] as CardSerial[];
+            const serializedCards = args[0] as CardSerial[];
             this._cards = serializedCards.map((card) => new Card(card.suit as CardSuit, card.rank as CardRank));
         } else if (args.length === 0) {
             this.initRandomDeck();

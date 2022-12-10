@@ -6,7 +6,7 @@ export class Hand {
 
     constructor(...args: any[]) {
         if (args.length === 1) {
-            const serializedCards = args[1] as CardSerial[];
+            const serializedCards = args[0] as CardSerial[];
             this._cards = serializedCards.map((card) => new Card(card.suit as CardSuit, card.rank as CardRank));
         } else if (args.length === 0) {
             this._cards = [];
@@ -21,14 +21,14 @@ export class Hand {
         return cards;
     }
 
-    public withdraw(suit: CardSuit, rank: CardRank): Card | undefined {
-        const idx = this._cards.findIndex((card) => card.suit === suit && card.rank === rank);
-        let card = undefined;
+    public withdraw(card: Card): Card | undefined {
+        const idx = this._cards.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
+        let removedCard = undefined;
         if (idx > -1) {
             const removedCards = this._cards.splice(idx, 1); // 2nd parameter means remove one item only
-            card = removedCards?.[0];
+            removedCard = removedCards?.[0];
         }
-        return card;
+        return removedCard;
     }
 
     get cards(): Card[] {

@@ -1,6 +1,8 @@
-import { doc, updateDoc } from "firebase/firestore";
+import { arrayUnion, doc, updateDoc } from "firebase/firestore";
 import db from "../../firebase";
+import { Card } from "../../models/Card";
 import { Deck } from "../../models/Deck";
+import { Hand } from "../../models/Hand";
 import { GameService } from "../Game";
 
 const INIT_CARDS_PER_PLAYER = 6;
@@ -28,5 +30,23 @@ export class Palace {
             i++;
         }
 
+        updateDoc(doc(db, `games/${gameId}`), {
+            deck: this.deck.serialize,
+            activeDeck: []
+        });
+    }
+
+    static async withdrawFromHandToDeck(gameId: string, playerId: string, hand: Hand, card: Card) {
+        hand.withdraw(card);
+
+        hand.draw(this.deck, 1);
+
+        updateDoc(doc(db, `games/${gameId}/players/${playerId}`), {
+            hand: hand.serialize,
+        });
+
+        updateDoc(doc(db, `games/${gameId}`), {
+            activeDeck: arrayUnion(card.serialize)
+        });
     }
 }

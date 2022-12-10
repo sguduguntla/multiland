@@ -1,3 +1,4 @@
+import { Images } from './../../utils/Images';
 export enum CardSuit {
     CLUBS = "clubs",
     DIAMONDS = "diamonds",
@@ -34,5 +35,9 @@ export class Card {
             suit: String(this._suit),
             rank: String(this._rank)
         };
+    }
+
+    get image(): string {
+        return Images.cards[`${this._rank}_${this._suit}`];
     }
 }
