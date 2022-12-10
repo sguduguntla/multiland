@@ -21,7 +21,7 @@ const app = initializeApp(firebaseConfig);
 // It will be imported into your react app whenever it is needed
 const db = getFirestore(app);
 
-export const getCollectionFetcher = async (url: string) => {
+export const getCollectionFetcher = async (url: string): Promise<any[]> => {
     const querySnapshot = await getDocs(collection(db, url));
     const data: any[] = [];
     querySnapshot.forEach((doc) => {
@@ -31,7 +31,7 @@ export const getCollectionFetcher = async (url: string) => {
     return data;
 };
 
-export const getDocFetcher = async (url: string) => {
+export const getDocFetcher = async (url: string): Promise<any> => {
     const resDoc = await getDoc(doc(db, url));
     const data = { id: resDoc.id, ...resDoc.data() };
     return data;
