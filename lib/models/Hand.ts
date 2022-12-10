@@ -1,4 +1,4 @@
-import { Card, CardRank, CardSerial, CardSuit } from "./Card";
+import { Card, CardRank, CardSerial, CardSuit, RankToValue } from "./Card";
 import { Deck } from "./Deck";
 
 export class Hand {
@@ -35,8 +35,18 @@ export class Hand {
         return this._cards;
     }
 
+    get size(): number {
+        return this._cards.length;
+    }
+
     get serialize(): CardSerial[] {
         return this._cards.map((card) => card.serialize);
+    }
+
+    public sort(): void {
+        this._cards.sort((c1, c2) => {
+            return RankToValue[c1.rank] - RankToValue[c2.rank]
+        });
     }
 
 }

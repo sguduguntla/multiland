@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import db from "../firebase";
 
 export class RoomService {
@@ -26,12 +26,22 @@ export class RoomService {
     }
 
     // ...
-    static async addPlayerToRoom(inviteCode: string, playerName: string): Promise<void> {
+    static async addPlayerToRoom(inviteCode: string, playerName: string): Promise<string> {
         const room = await this.getRoomByInviteCode(inviteCode);
 
-        await addDoc(collection(db, `rooms/${room.id}/players`), {
+        if (localStorage.getItem('playerId')) {
+            // If the player is already in the room don't add again
+            const playerDoc = await getDoc(doc(db, `rooms/${room.id}/players/${localStorage.getItem('playerId')}`));
+            if (playerDoc.exists()) {
+                return playerDoc.id;
+            }
+        }
+
+        const addedDoc = await addDoc(collection(db, `rooms/${room.id}/players`), {
             name: playerName
         });
+
+        return addedDoc.id;
     }
     // ...
 }

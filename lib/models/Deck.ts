@@ -36,12 +36,15 @@ export class Deck {
         return this._cards.splice(0, numCards);
     }
 
-    public deal(numPlayers: number, numCardsPerPlayer: number): Hand[] {
+    public deal(numPlayers: number, numCardsPerPlayer: number, isSorted = false): Hand[] {
         const hands: Hand[] = [];
         for (let j = 0; j < numPlayers; j++) {
             const hand = new Hand();
             hand.draw(this, numCardsPerPlayer);
             hands.push(hand);
+        }
+        if (isSorted) {
+            hands.forEach((hand) => hand.sort());
         }
         return hands;
     }
@@ -52,6 +55,10 @@ export class Deck {
 
     get serialize(): CardSerial[] {
         return this._cards.map((card) => card.serialize);
+    }
+
+    getTopCards(numCards: number): Card[] {
+        return this._cards.slice(Math.max(this._cards.length - numCards, 0));
     }
 
 }

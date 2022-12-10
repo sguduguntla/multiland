@@ -1,8 +1,9 @@
+import clsx from 'clsx';
 import { doc, onSnapshot } from 'firebase/firestore';
 import Head from 'next/head';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import useWindowDimensions from '../../../../hooks/useWindowDimensions';
 import db, {
@@ -13,6 +14,8 @@ import { Card } from '../../../../lib/models/Card';
 import { Hand } from '../../../../lib/models/Hand';
 import { Palace } from '../../../../lib/services/palace/Palace';
 import { RoomService } from '../../../../lib/services/Room';
+import styles from '../../../../styles/Game.module.css';
+import { Images } from '../../../../utils/Images';
 
 const fetcher = async (key: string, inviteCode: string) => {
   return RoomService.getRoomByInviteCode(inviteCode);
@@ -41,6 +44,8 @@ function Game() {
     game?.id ? `games/${game.id}/players` : null,
     getCollectionFetcher
   );
+  const [cmdKeyDown, setCmdKeyDown] = useState(false);
+  const [selectedCards, setSelectedCards] = useState<Card[]>([]);
 
   const onPlayerSnapshots = () => {
     const unsubscribers: any[] = [];
@@ -78,17 +83,6 @@ function Game() {
 
   console.log('MY PLAYERS', players);
 
-  const renderPlayer = (player: any, i: number) => {
-    return (
-      <div
-        key={i}
-        className="bg-blue-500 appearance-none truncate border-2 m-2 border-gray-200 rounded-full w-44 py-2 px-2 text-xl text-white text-center leading-tight focus:outline-none"
-      >
-        {player.name}
-      </div>
-    );
-  };
-
   if (!room || !players?.length || !game) {
     return <div>loading...</div>;
   }
@@ -109,21 +103,98 @@ function Game() {
           src={imageSrc}
           key={i}
           alt={`${card.rank} of ${card.suit}`}
-          width={100}
-          height={200}
+          width={90}
+          height={180}
           onClick={() => {
-            Palace.withdrawFromHandToDeck(game?.id, player.id, hand, card);
+            if (cmdKeyDown) {
+              const idx = selectedCards.findIndex(
+                (c) => card.rank === c.rank && card.suit === c.suit
+              );
+              if (idx > -1) {
+                const newSelectedCards = [...selectedCards];
+                newSelectedCards.splice(idx, 1);
+                setSelectedCards(newSelectedCards);
+              } else {
+                setSelectedCards([...selectedCards, card]);
+              }
+            }
           }}
-          style={{ cursor: 'pointer' }}
+          className={clsx(styles.handCard, {
+            'border-4 rounded-md border-red-500': !!selectedCards.find(
+              (c) => card.rank === c.rank && card.suit === c.suit
+            ),
+          })}
         />
       );
     });
   };
 
-  const activeCard = new Card(
-    game?.activeDeck?.[game?.activeDeck?.length - 1]?.suit,
-    game?.activeDeck?.[game?.activeDeck?.length - 1]?.rank
-  );
+  const renderDownCards = (player: any) => {
+    const hand = new Hand(player.hand);
+
+    return (
+      <div className="relative w-full">
+        <div className="flex flex-row justify-center mt-4 w-full">
+          {player.faceDown.map((c: any, i: number) => {
+            const card = new Card(c.suit, c.rank);
+            const imageSrc = card.image;
+            return (
+              <div
+                key={i}
+                className="flex flex-row justify-center w-36 relative h-36"
+              >
+                <Image
+                  src={imageSrc}
+                  alt={`${card.rank} of ${card.suit}`}
+                  width={90}
+                  height={180}
+                  style={{ position: 'absolute', zIndex: 1 }}
+                />
+                <Image
+                  src={Images.cards.back}
+                  key={i}
+                  alt={`Facedown card`}
+                  width={90}
+                  height={180}
+                  style={{ marginRight: 40, position: 'absolute' }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderActiveDeck = () => {
+    const activeCard = new Card(
+      game?.activeDeck?.[game?.activeDeck?.length - 1]?.suit,
+      game?.activeDeck?.[game?.activeDeck?.length - 1]?.rank
+    );
+
+    if (!game?.activeDeck?.length) {
+      return false;
+    }
+
+    return (
+      <div className="flex flex-row justify-center w-full">
+        <Image
+          src={activeCard.image}
+          alt={`${activeCard.rank} of ${activeCard.suit}`}
+          width={100}
+          height={200}
+          style={{
+            border: '1px solid black',
+            borderRadius: 5,
+            boxShadow: '0px 0px 40px 10px #0ff',
+          }}
+        />
+      </div>
+    );
+  };
+
+  const myPlayer = players[0];
+  const myHand = myPlayer.hand;
 
   return (
     <div className="flex justify-center items-center">
@@ -132,25 +203,46 @@ function Game() {
         <meta name="description" content="Multiland!" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className="flex flex-1 flex-col items-center w-full min-h-screen">
-        <div className="rounded-lg border m-0 p-0 w-3/4 h-full">
-          <div className="text-center text-white flex flex-col items-center w-full min-h-screen">
+      <main
+        className="flex flex-1 flex-col items-center w-full min-h-screen"
+        onKeyDown={(e) => {
+          if (e.key === 'Shift') {
+            setCmdKeyDown(true);
+          }
+        }}
+        onKeyUp={(e) => {
+          setCmdKeyDown(false);
+          if (e.key === 'Enter' && selectedCards.length > 0) {
+            Palace.withdrawFromHandToDeck(
+              game?.id,
+              myPlayer.id,
+              new Hand(myHand),
+              selectedCards
+            );
+            setSelectedCards([]);
+          }
+        }}
+        tabIndex={0}
+      >
+        <div className="rounded-lg flex flex-col m-0 p-0 w-3/4 min-h-screen">
+          <div className="text-center text-white flex-none w-full">
             <h1 className="text-2xl mt-4">{p1.name}</h1>
-            <div className="flex flex-row space-x-4 border-2 border-red-500 mt-4">
+            <div className="flex flex-row justify-center space-x-4 mt-4">
               {renderHand(p1)}
             </div>
+            {renderDownCards(p1)}
           </div>
-          {game?.activeDeck?.length > 0 && (
-            <>
-              <Image
-                src={activeCard.image}
-                alt={`${activeCard.rank} of ${activeCard.suit}`}
-                width={100}
-                height={200}
-              />
-            </>
-          )}
-          <div
+          <div className="grow"></div>
+          {renderActiveDeck()}
+          <div className="grow"></div>
+          <div className="text-center text-white flex-none items-center w-full">
+            {renderDownCards(p2)}
+            <div className="flex flex-row justify-center space-x-4 my-4">
+              {renderHand(p2)}
+            </div>
+            <h1 className="text-2xl mb-4">{p2.name}</h1>
+          </div>
+          {/* <div
             className="absolute bg-red-500 bottom-0 rounded-full text-center text-white flex items-center justify-center"
             style={{
               width: 100,
@@ -158,14 +250,8 @@ function Game() {
               left: WINDOW_HEIGHT / 2 - 50,
             }}
           >
-            <div className="flex flex-row space-x-4 border-2 border-red-500 mt-4">
-              {renderHand(p2)}
-            </div>
-            <h1 className="text-2xl mt-4">{p2.name}</h1>
-          </div>
-        </div>
-        <div className="flex mt-8 w-3/4 flex-wrap">
-          {players.map(renderPlayer)}
+           
+          </div> */}
         </div>
       </main>
     </div>

@@ -13,7 +13,9 @@ export default function Home() {
     getCollectionFetcher
   );
   const [inviteCode, setInviteCode] = useState<string>('');
-  const [name, setName] = useState<string>('');
+  const [name, setName] = useState<string>(
+    (typeof window !== 'undefined' && localStorage.getItem('playerName')) || ''
+  );
 
   console.log(error);
 
@@ -25,7 +27,9 @@ export default function Home() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await RoomService.addPlayerToRoom(inviteCode, name);
+      const playerId = await RoomService.addPlayerToRoom(inviteCode, name);
+      localStorage.setItem('playerId', playerId);
+      localStorage.setItem('playerName', name);
       router.push(`/rooms/${inviteCode}`);
     } catch (err) {
       console.log('ERROR', err);
