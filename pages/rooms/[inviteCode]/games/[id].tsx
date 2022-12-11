@@ -12,7 +12,10 @@ import db, {
 } from '../../../../lib/firebase';
 import { Card } from '../../../../lib/models/Card';
 import { Hand } from '../../../../lib/models/Hand';
-import { Palace } from '../../../../lib/services/palace/Palace';
+import {
+  INIT_FACE_DOWN_CARDS_PER_PLAYER,
+  Palace,
+} from '../../../../lib/services/palace/Palace';
 import { RoomService } from '../../../../lib/services/Room';
 import styles from '../../../../styles/Game.module.css';
 import { Images } from '../../../../utils/Images';
@@ -81,16 +84,32 @@ function Game() {
     () => unsubscribers.map((u) => u());
   }, [game?.id, players?.length]);
 
-  console.log('MY PLAYERS', players);
-
   if (!room || !players?.length || !game) {
     return <div>loading...</div>;
   }
 
-  const p1 = players[0];
-  const p2 = players[1];
+  console.log('MY PLAYERS', players);
 
   console.log(players);
+
+  const myPlayerIdx = players.findIndex(
+    (p) =>
+      p.id ===
+      (typeof window !== 'undefined' && localStorage.getItem('playerId'))
+  );
+
+  let p1: any, p2: any;
+
+  if (myPlayerIdx === 0) {
+    p1 = players[0];
+    p2 = players[1];
+  } else {
+    p1 = players[1];
+    p2 = players[0];
+  }
+
+  const myHand = p1.hand;
+  const startedGame = !!(p1.chosenFaceUp && p2.chosenFaceUp);
 
   const renderHand = (player: any) => {
     const hand = new Hand(player.hand);
@@ -106,7 +125,10 @@ function Game() {
           width={90}
           height={180}
           onClick={() => {
-            if (cmdKeyDown) {
+            if (cmdKeyDown && player.id === p1.id) {
+              if (startedGame && player.id !== game?.playerTurn) {
+                return;
+              }
               const idx = selectedCards.findIndex(
                 (c) => card.rank === c.rank && card.suit === c.suit
               );
@@ -115,15 +137,35 @@ function Game() {
                 newSelectedCards.splice(idx, 1);
                 setSelectedCards(newSelectedCards);
               } else {
+                if (
+                  !p1.chosenFaceUp &&
+                  selectedCards.length ===
+                    INIT_FACE_DOWN_CARDS_PER_PLAYER - player.faceUp.length
+                ) {
+                  // If they've selected 3 cards for their face up cards already, don't let them choose anymore
+                  return;
+                }
+
                 setSelectedCards([...selectedCards, card]);
               }
             }
           }}
-          className={clsx(styles.handCard, {
-            'border-4 rounded-md border-red-500': !!selectedCards.find(
-              (c) => card.rank === c.rank && card.suit === c.suit
-            ),
-          })}
+          className={
+            player.id == p1.id
+              ? clsx(
+                  {
+                    [styles.handCard]:
+                      cmdKeyDown &&
+                      !(startedGame && player.id !== game?.playerTurn),
+                  },
+                  {
+                    'border-4 rounded-md border-red-500': !!selectedCards.find(
+                      (c) => card.rank === c.rank && card.suit === c.suit
+                    ),
+                  }
+                )
+              : ''
+          }
         />
       );
     });
@@ -132,32 +174,48 @@ function Game() {
   const renderDownCards = (player: any) => {
     const hand = new Hand(player.hand);
 
+    const totalIters = Math.max(player.faceDown.length, player.faceUp.length);
+
     return (
       <div className="relative w-full">
         <div className="flex flex-row justify-center mt-4 w-full">
-          {player.faceDown.map((c: any, i: number) => {
-            const card = new Card(c.suit, c.rank);
-            const imageSrc = card.image;
+          {new Array(totalIters).fill(0).map((c: any, i: number) => {
+            const faceDownCard =
+              i < player.faceDown.length
+                ? new Card(player.faceDown[i].suit, player.faceDown[i].rank)
+                : null;
+            const faceUpCard =
+              i < player.faceUp.length
+                ? new Card(player.faceUp[i].suit, player.faceUp[i].rank)
+                : null;
+
             return (
               <div
                 key={i}
                 className="flex flex-row justify-center w-36 relative h-36"
               >
-                <Image
-                  src={imageSrc}
-                  alt={`${card.rank} of ${card.suit}`}
-                  width={90}
-                  height={180}
-                  style={{ position: 'absolute', zIndex: 1 }}
-                />
-                <Image
-                  src={Images.cards.back}
-                  key={i}
-                  alt={`Facedown card`}
-                  width={90}
-                  height={180}
-                  style={{ marginRight: 40, position: 'absolute' }}
-                />
+                {faceUpCard && (
+                  <Image
+                    src={faceUpCard.image}
+                    alt={`${faceUpCard.rank} of ${faceUpCard.suit}`}
+                    width={90}
+                    height={180}
+                    style={{ position: 'absolute', zIndex: 1 }}
+                  />
+                )}
+                {faceDownCard && (
+                  <Image
+                    src={Images.cards.back}
+                    key={i}
+                    alt={`Facedown card`}
+                    width={90}
+                    height={180}
+                    style={{
+                      marginRight: faceUpCard ? 40 : 0,
+                      position: 'absolute',
+                    }}
+                  />
+                )}
               </div>
             );
           })}
@@ -172,29 +230,99 @@ function Game() {
       game?.activeDeck?.[game?.activeDeck?.length - 1]?.rank
     );
 
-    if (!game?.activeDeck?.length) {
-      return false;
-    }
-
     return (
-      <div className="flex flex-row justify-center w-full">
-        <Image
-          src={activeCard.image}
-          alt={`${activeCard.rank} of ${activeCard.suit}`}
-          width={100}
-          height={200}
-          style={{
-            border: '1px solid black',
-            borderRadius: 5,
-            boxShadow: '0px 0px 40px 10px #0ff',
-          }}
-        />
+      <div className="flex flex-row justify-center w-full space-x-12">
+        {game?.activeDeck?.length > 0 && (
+          <div className="relative flex flex-row justify-center w-40 h-36">
+            {game.activeDeck
+              .slice(game?.activeDeck?.length - 4)
+              .map((c: any, i: number) => {
+                const card = new Card(c.suit, c.rank);
+
+                return (
+                  <Image
+                    key={i}
+                    src={card.image}
+                    alt={`${card.rank} of ${card.suit}`}
+                    width={100}
+                    height={200}
+                    style={{
+                      border: '1px solid black',
+                      borderRadius: 5,
+                      marginLeft: i * 40,
+                      position: 'absolute',
+                    }}
+                  />
+                );
+              })}
+          </div>
+        )}
+
+        {game?.deck?.length > 0 && (
+          <Image
+            src={Images.cards.back}
+            alt={`Deck`}
+            width={100}
+            height={200}
+            style={{
+              border: '1px solid black',
+              borderRadius: 5,
+              boxShadow: '0px 0px 40px 10px #a4ff7d',
+            }}
+            onClick={() => {
+              if (startedGame && game?.playerTurn === p1.id) {
+                // If it's the current player's turn, draw 1 card from deck
+                Palace.drawFromDeckToHand(
+                  game?.id,
+                  p1.id,
+                  p2.id,
+                  new Hand(myHand),
+                  1
+                );
+              }
+            }}
+            className={clsx({
+              [styles.handCard]: startedGame && game?.playerTurn === p1.id,
+            })}
+          />
+        )}
       </div>
     );
   };
 
-  const myPlayer = players[0];
-  const myHand = myPlayer.hand;
+  const renderMessage = () => {
+    if (!p1.chosenFaceUp) {
+      const remainingCards = INIT_FACE_DOWN_CARDS_PER_PLAYER - p1.faceUp.length;
+
+      return (
+        <h1>
+          Select {remainingCards} card{remainingCards === 1 ? '' : 's'} to put
+          down face up
+        </h1>
+      );
+    }
+
+    if (!p2.chosenFaceUp) {
+      const remainingCards = INIT_FACE_DOWN_CARDS_PER_PLAYER - p2.faceUp.length;
+
+      return (
+        <h1>
+          Waiting for {p2.name} to choose {remainingCards} card
+          {remainingCards === 1 ? '' : 's'} to put down face up
+        </h1>
+      );
+    }
+
+    if (p1.id === game.playerTurn) {
+      return <h1>It&apos;s your turn!</h1>;
+    }
+
+    if (p2.id === game.playerTurn) {
+      return <h1>Waiting for {p2.name} to play their turn</h1>;
+    }
+
+    return null;
+  };
 
   return (
     <div className="flex justify-center items-center">
@@ -213,34 +341,58 @@ function Game() {
         onKeyUp={(e) => {
           setCmdKeyDown(false);
           if (e.key === 'Enter' && selectedCards.length > 0) {
-            Palace.withdrawFromHandToDeck(
-              game?.id,
-              myPlayer.id,
-              new Hand(myHand),
-              selectedCards
-            );
+            if (!p1.chosenFaceUp) {
+              // If they haven't selected face cards yet, select them
+              Palace.selectFaceCards(
+                game?.id,
+                p1.id,
+                new Hand(myHand),
+                selectedCards
+              );
+            } else {
+              Palace.withdrawFromHandToDeck(
+                game?.id,
+                p1.id,
+                p2.id,
+                new Hand(myHand),
+                selectedCards
+              );
+            }
+
             setSelectedCards([]);
           }
         }}
         tabIndex={0}
       >
+        <div className="absolute top-10 left-10">
+          <h1 className="underline underline-offset-4">
+            <strong>CONTROLS</strong>
+          </h1>
+          <ul className="mt-4 list-disc">
+            <li>
+              Hold <strong>&apos;Shift&apos;</strong> Key &amp; click to select
+              cards
+            </li>
+          </ul>
+        </div>
+        <div className="absolute top-10 right-10">{renderMessage()}</div>
         <div className="rounded-lg flex flex-col m-0 p-0 w-3/4 min-h-screen">
           <div className="text-center text-white flex-none w-full">
-            <h1 className="text-2xl mt-4">{p1.name}</h1>
+            <h1 className="text-2xl mt-4">{p2.name}</h1>
             <div className="flex flex-row justify-center space-x-4 mt-4">
-              {renderHand(p1)}
+              {renderHand(p2)}
             </div>
-            {renderDownCards(p1)}
+            {renderDownCards(p2)}
           </div>
           <div className="grow"></div>
           {renderActiveDeck()}
           <div className="grow"></div>
           <div className="text-center text-white flex-none items-center w-full">
-            {renderDownCards(p2)}
+            {renderDownCards(p1)}
             <div className="flex flex-row justify-center space-x-4 my-4">
-              {renderHand(p2)}
+              {renderHand(p1)}
             </div>
-            <h1 className="text-2xl mb-4">{p2.name}</h1>
+            <h1 className="text-2xl mb-4">{p1.name}</h1>
           </div>
           {/* <div
             className="absolute bg-red-500 bottom-0 rounded-full text-center text-white flex items-center justify-center"

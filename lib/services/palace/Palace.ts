@@ -1,13 +1,13 @@
-import { arrayUnion, doc, updateDoc } from "firebase/firestore";
+import { arrayUnion, doc, getDoc, updateDoc } from "firebase/firestore";
 import db from "../../firebase";
 import { Card } from "../../models/Card";
 import { Deck } from "../../models/Deck";
 import { Hand } from "../../models/Hand";
 import { GameService } from "../Game";
 
-const INIT_CARDS_PER_PLAYER = 6;
-const INIT_FACE_DOWN_CARDS_PER_PLAYER = 3;
-const MIN_CARDS_IN_HAND = 3;
+export const INIT_CARDS_PER_PLAYER = 6;
+export const INIT_FACE_DOWN_CARDS_PER_PLAYER = 3;
+export const MIN_CARDS_IN_HAND = 3;
 
 export class Palace {
     private static deck: Deck;
@@ -26,7 +26,9 @@ export class Palace {
         for (const p of players) {
             updateDoc(doc(db, `games/${gameId}/players/${p.id}`), {
                 hand: activeHands[i]?.serialize,
-                faceDown: faceDownHands[i]?.serialize
+                faceDown: faceDownHands[i]?.serialize,
+                faceUp: [],
+                chosenFaceUp: false
             });
             i++;
         }
@@ -37,7 +39,8 @@ export class Palace {
         });
     }
 
-    static async withdrawFromHandToDeck(gameId: string, playerId: string, hand: Hand, cards: Card[]) {
+    // Play turn function
+    static async withdrawFromHandToDeck(gameId: string, p1Id: string, p2Id: string, hand: Hand, cards: Card[]) {
         cards.forEach((card) => {
             hand.withdraw(card);
         });
@@ -45,13 +48,83 @@ export class Palace {
         hand.draw(this.deck, MIN_CARDS_IN_HAND - hand.size);
         hand.sort();
 
-        updateDoc(doc(db, `games/${gameId}/players/${playerId}`), {
+        updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
             hand: hand.serialize,
         });
 
         updateDoc(doc(db, `games/${gameId}`), {
             activeDeck: arrayUnion(...cards.map((card) => card.serialize)),
+            playerTurn: p2Id
         });
+    }
+
+    static async drawFromDeckToHand(gameId: string, p1Id: string, p2Id: string, hand: Hand, numCards: number) {
+        hand.draw(this.deck, numCards);
+
+        hand.sort();
+
+        updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
+            hand: hand.serialize,
+        });
+
+        updateDoc(doc(db, `games/${gameId}`), {
+            activeDeck: this.deck.serialize,
+            playerTurn: p2Id
+        });
+    }
+
+    static async selectFaceCards(gameId: string, playerId: string, hand: Hand, cards: Card[]) {
+        cards.forEach((card) => {
+            hand.withdraw(card);
+        });
+
+        hand.sort();
+
+        const playerDoc = await getDoc(doc(db, `games/${gameId}/players/${playerId}`));
+        let chosenFaceUp = false;
+        if (playerDoc.data()?.faceUp.length + cards.length >= INIT_FACE_DOWN_CARDS_PER_PLAYER) {
+            chosenFaceUp = true;
+        }
+
+        updateDoc(doc(db, `games/${gameId}/players/${playerId}`), {
+            hand: hand.serialize,
+            faceUp: arrayUnion(...cards.map((card) => card.serialize)),
+            chosenFaceUp
+        });
+
+        if (chosenFaceUp) {
+            // Start the game and choose first player
+            await this.startGameAndChooseFirstPlayer(gameId);
+        }
+    }
+
+    static async startGameAndChooseFirstPlayer(gameId: string) {
+        const players = await GameService.getPlayers(gameId);
+        for (const p of players) {
+            let allChosenFaceUp = true;
+            if (!p.chosenFaceUp) {
+                allChosenFaceUp = false;
+                break;
+            }
+
+            if (allChosenFaceUp) {
+                const gameDoc = await getDoc(doc(db, `games/${gameId}`));
+                let playerTurn = "";
+                if (gameDoc.data()?.lastWinner) {
+                    // Prioritize the first player to be the person who won the previous game
+                    playerTurn = gameDoc.data()?.lastWinner;
+                } else {
+                    const playerIds = players.map(p => p.id);
+                    playerTurn = playerIds[Math.floor(Math.random() * playerIds.length)];
+                }
+                // Randomly chooses the first player to play
+                updateDoc(doc(db, `games/${gameId}`), {
+                    playerTurn
+                });
+            }
+
+            return allChosenFaceUp;
+        }
     }
 
     static async canPlayCard(activeDeck: Deck, card: Card) {
