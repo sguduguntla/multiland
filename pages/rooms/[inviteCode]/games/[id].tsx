@@ -147,7 +147,13 @@ function Game() {
                   return;
                 }
 
-                setSelectedCards([...selectedCards, card]);
+                if (startedGame && selectedCards.length) {
+                  if (selectedCards.find((c) => card.rank === c.rank)) {
+                    setSelectedCards([...selectedCards, card]);
+                  }
+                } else {
+                  setSelectedCards([...selectedCards, card]);
+                }
               }
             }
           }}
@@ -159,7 +165,13 @@ function Game() {
                       cmdKeyDown &&
                       !(startedGame && player.id !== game?.playerTurn) &&
                       !card.disabled,
-                    [styles.disabledCard]: card.disabled,
+                    [styles.disabledCard]:
+                      card.disabled ||
+                      (cmdKeyDown &&
+                        startedGame &&
+                        !(startedGame && player.id !== game?.playerTurn) &&
+                        selectedCards.length > 0 &&
+                        !selectedCards.find((c) => card.rank === c.rank)),
                   },
                   {
                     'border-4 rounded-md border-red-500': !!selectedCards.find(
@@ -228,15 +240,25 @@ function Game() {
   };
 
   const renderActiveDeck = () => {
-    const activeCard = new Card(
-      game?.activeDeck?.[game?.activeDeck?.length - 1]?.suit,
-      game?.activeDeck?.[game?.activeDeck?.length - 1]?.rank
-    );
+    const hand = new Hand(myHand);
 
     return (
       <div className="flex flex-row justify-center w-full space-x-12">
         {game?.activeDeck?.length > 0 && (
-          <div className="relative flex flex-row justify-center w-40 h-36">
+          <div
+            className={clsx('relative flex flex-row justify-center w-40 h-36', {
+              [styles.handCard]: startedGame && myTurn,
+            })}
+            onClick={() => {
+              if (startedGame && myTurn) {
+                Palace.transferCardsFromActiveDeckToHand(
+                  game?.id,
+                  p1.id,
+                  p2.id
+                );
+              }
+            }}
+          >
             {game.activeDeck
               .slice(game?.activeDeck?.length - 4)
               .map((c: any, i: number) => {
@@ -273,7 +295,7 @@ function Game() {
               boxShadow: '0px 0px 40px 10px #a4ff7d',
             }}
             onClick={() => {
-              if (startedGame && myTurn) {
+              if (startedGame && myTurn && !hand.allDisabled) {
                 // If it's the current player's turn, draw 1 card from deck
                 Palace.drawFromDeckToHand(
                   game?.id,

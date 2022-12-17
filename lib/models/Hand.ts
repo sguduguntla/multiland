@@ -43,6 +43,10 @@ export class Hand {
         return this._cards.map((card) => card.serialize);
     }
 
+    get allDisabled(): boolean {
+        return this._cards.every((card) => card.disabled);
+    }
+
     public sort(): void {
         this._cards.sort((c1, c2) => {
             return RankToValue[c1.rank] - RankToValue[c2.rank]

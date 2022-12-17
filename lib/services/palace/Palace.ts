@@ -58,6 +58,7 @@ export class Palace {
             for (let i = activeDeck.size - 1; i >= 0; i--) {
                 if (activeDeck.cards[i].rank !== '9') {
                     lastActiveCard = activeDeck.cards[i];
+                    break;
                 }
             }
         }
@@ -250,19 +251,37 @@ export class Palace {
         }
     }
 
-    static async canPlayCard(activeDeck: Deck, card: Card) {
-        const top4Cards = activeDeck.getTopCards(4); // last one is topmost card (bottom to top order)
+    static async transferCardsFromActiveDeckToHand(gameId: string, p1Id: string, p2Id: string) {
+        const gameDoc = await getDoc(doc(db, `games/${gameId}`));
 
-        if (top4Cards.length === 0) {
-            return true;
+        const p1Doc = await getDoc(doc(db, `games/${gameId}/players/${p1Id}`));
+        const p2Doc = await getDoc(doc(db, `games/${gameId}/players/${p2Id}`));
+
+        const hand1 = new Hand([...(p1Doc?.data()?.hand || []), ...(gameDoc?.data()?.activeDeck || [])]);
+        const hand2 = new Hand(p1Doc?.data()?.hand || []);
+
+        hand1.sort();
+
+        for (const card of hand1.cards) {
+            card.disabled = false;
         }
 
-        const topCard = top4Cards[top4Cards.length - 1];
+        updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
+            hand: hand1.serialize
+        });
 
-        if (topCard.suit === card.suit) {
-            return false;
+        for (const card of hand2.cards) {
+            card.disabled = false;
         }
 
+        updateDoc(doc(db, `games/${gameId}/players/${p2Id}`), {
+            hand: hand2.serialize
+        });
+
+        updateDoc(doc(db, `games/${gameId}`), {
+            activeDeck: [],
+            playerTurn: p2Id
+        });
 
     }
 }
