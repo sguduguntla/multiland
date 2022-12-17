@@ -57,6 +57,10 @@ export class Deck {
         return this._cards.map((card) => card.serialize);
     }
 
+    get size(): number {
+        return this._cards.length;
+    }
+
     getTopCards(numCards: number): Card[] {
         return this._cards.slice(Math.max(this._cards.length - numCards, 0));
     }

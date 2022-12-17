@@ -27,15 +27,18 @@ export const RankToValue: { [key: string]: number } = {
 export interface CardSerial {
     suit: string;
     rank: string;
+    disabled: boolean;
 }
 
 export class Card {
     private _suit: CardSuit;
     private _rank: CardRank;
+    private _disabled: boolean;
 
-    constructor(suit: CardSuit, rank: CardRank) {
+    constructor(suit: CardSuit, rank: CardRank, disabled = false) {
         this._suit = suit;
         this._rank = rank;
+        this._disabled = disabled;
     }
 
     get suit(): CardSuit {
@@ -46,14 +49,23 @@ export class Card {
         return this._rank;
     }
 
+    get disabled(): boolean {
+        return this._disabled;
+    }
+
     get serialize(): CardSerial {
         return {
             suit: String(this._suit),
-            rank: String(this._rank)
+            rank: String(this._rank),
+            disabled: this._disabled
         };
     }
 
     get image(): string {
         return Images.cards[`${this._rank}_${this._suit}`];
+    }
+
+    set disabled(disabled: boolean) {
+        this._disabled = disabled;
     }
 }

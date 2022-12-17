@@ -4,10 +4,12 @@ import { Card } from "../../models/Card";
 import { Deck } from "../../models/Deck";
 import { Hand } from "../../models/Hand";
 import { GameService } from "../Game";
+import { RankToValue } from './../../models/Card';
 
 export const INIT_CARDS_PER_PLAYER = 6;
 export const INIT_FACE_DOWN_CARDS_PER_PLAYER = 3;
 export const MIN_CARDS_IN_HAND = 3;
+export const SPECIAL_ANYTIME_CARDS = ["10", "2", "9"]; // Special cards that can be put down any time
 
 export class Palace {
     private static deck: Deck;
@@ -39,6 +41,132 @@ export class Palace {
         });
     }
 
+    static async updateHandState(activeDeck: Deck, hand1: Hand, gameId: string, p1Id: string, p2Id: string) {
+        if (activeDeck.size === 0) {
+            return;
+        }
+
+        const p2Doc = await getDoc(doc(db, `games/${gameId}/players/${p2Id}`));
+
+        const hand2 = new Hand(p2Doc.data()?.hand);
+
+        const top4Cards = activeDeck.getTopCards(4);
+        const topmostCard = top4Cards[top4Cards.length - 1];
+        let lastActiveCard = topmostCard;
+
+        if (topmostCard.rank === "9") {
+            for (let i = activeDeck.size - 1; i >= 0; i--) {
+                if (activeDeck.cards[i].rank !== '9') {
+                    lastActiveCard = activeDeck.cards[i];
+                }
+            }
+        }
+
+        if (lastActiveCard.rank === "7") {
+            for (const card of hand2.cards) {
+                if (!SPECIAL_ANYTIME_CARDS.includes(card.rank) && RankToValue[card.rank] > RankToValue["7"]) {
+                    card.disabled = true;
+                } else {
+                    card.disabled = false;
+                }
+            }
+
+            updateDoc(doc(db, `games/${gameId}/players/${p2Id}`), {
+                hand: hand2.serialize,
+            });
+
+            for (const card of hand1.cards) {
+                card.disabled = false;
+            }
+
+            await updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
+                hand: hand1.serialize,
+            });
+
+            // Switch turn
+            updateDoc(doc(db, `games/${gameId}`), {
+                activeDeck: activeDeck.serialize,
+                playerTurn: p2Id
+            });
+        } else if (lastActiveCard.rank == "2") {
+            for (const card of hand1.cards) {
+                card.disabled = false;
+            }
+
+            updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
+                hand: hand1.serialize,
+            });
+
+            // Don't switch turn
+            updateDoc(doc(db, `games/${gameId}`), {
+                activeDeck: activeDeck.serialize
+            });
+        } else if (lastActiveCard.rank == "10") {
+            for (const card of hand1.cards) {
+                card.disabled = false;
+            }
+
+            updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
+                hand: hand1.serialize,
+            });
+
+            // Bomb deck and don't switch turn
+            updateDoc(doc(db, `games/${gameId}`), {
+                activeDeck: []
+            });
+        } else if (lastActiveCard.rank === "9") { // This means active deck only has one 9
+            for (const card of hand2.cards) {
+                card.disabled = false;
+            }
+
+            updateDoc(doc(db, `games/${gameId}/players/${p2Id}`), {
+                hand: hand2.serialize,
+            });
+
+            for (const card of hand1.cards) {
+                card.disabled = false;
+            }
+
+            await updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
+                hand: hand1.serialize,
+            });
+
+            // Switch turn
+            updateDoc(doc(db, `games/${gameId}`), {
+                activeDeck: activeDeck.serialize,
+                playerTurn: p2Id
+            });
+        } else {
+            for (const card of hand2.cards) {
+                if (!SPECIAL_ANYTIME_CARDS.includes(card.rank) && RankToValue[card.rank] < RankToValue[lastActiveCard.rank]) {
+                    card.disabled = true;
+                } else {
+                    card.disabled = false;
+                }
+            }
+
+            updateDoc(doc(db, `games/${gameId}/players/${p2Id}`), {
+                hand: hand2.serialize,
+            });
+
+            for (const card of hand1.cards) {
+                card.disabled = false;
+            }
+
+            await updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
+                hand: hand1.serialize,
+            });
+
+            // Switch turn
+            updateDoc(doc(db, `games/${gameId}`), {
+                activeDeck: activeDeck.serialize,
+                playerTurn: p2Id
+            });
+
+        }
+
+    }
+
     // Play turn function
     static async withdrawFromHandToDeck(gameId: string, p1Id: string, p2Id: string, hand: Hand, cards: Card[]) {
         cards.forEach((card) => {
@@ -48,14 +176,10 @@ export class Palace {
         hand.draw(this.deck, MIN_CARDS_IN_HAND - hand.size);
         hand.sort();
 
-        updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
-            hand: hand.serialize,
-        });
+        const gameDoc = await getDoc(doc(db, `games/${gameId}`));
+        const activeDeck = [...(gameDoc.data()?.activeDeck || []), ...cards.map((card) => card.serialize)];
 
-        updateDoc(doc(db, `games/${gameId}`), {
-            activeDeck: arrayUnion(...cards.map((card) => card.serialize)),
-            playerTurn: p2Id
-        });
+        await this.updateHandState(new Deck(activeDeck), hand, gameId, p1Id, p2Id);
     }
 
     static async drawFromDeckToHand(gameId: string, p1Id: string, p2Id: string, hand: Hand, numCards: number) {
@@ -63,14 +187,13 @@ export class Palace {
 
         hand.sort();
 
-        updateDoc(doc(db, `games/${gameId}/players/${p1Id}`), {
-            hand: hand.serialize,
+        updateDoc(doc(db, `games/${gameId}`), {
+            deck: this.deck.serialize,
         });
 
-        updateDoc(doc(db, `games/${gameId}`), {
-            activeDeck: this.deck.serialize,
-            playerTurn: p2Id
-        });
+        const gameDoc = await getDoc(doc(db, `games/${gameId}`));
+
+        this.updateHandState(new Deck(gameDoc.data()?.activeDeck || []), hand, gameId, p1Id, p2Id);
     }
 
     static async selectFaceCards(gameId: string, playerId: string, hand: Hand, cards: Card[]) {

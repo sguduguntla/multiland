@@ -6,3 +6,8 @@
   cursor: pointer;
   transition: opacity 0.2s linear 0.1s; /* effect on 0.3 millisecond */
 }
+
+.disabledCard {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

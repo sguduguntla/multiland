@@ -110,12 +110,13 @@ function Game() {
 
   const myHand = p1.hand;
   const startedGame = !!(p1.chosenFaceUp && p2.chosenFaceUp);
+  const myTurn = game?.playerTurn === p1.id;
 
   const renderHand = (player: any) => {
     const hand = new Hand(player.hand);
 
     return player.hand.map((c: any, i: number) => {
-      const card = new Card(c.suit, c.rank);
+      const card = new Card(c.suit, c.rank, c.disabled);
       const imageSrc = card.image;
       return (
         <Image
@@ -156,7 +157,9 @@ function Game() {
                   {
                     [styles.handCard]:
                       cmdKeyDown &&
-                      !(startedGame && player.id !== game?.playerTurn),
+                      !(startedGame && player.id !== game?.playerTurn) &&
+                      !card.disabled,
+                    [styles.disabledCard]: card.disabled,
                   },
                   {
                     'border-4 rounded-md border-red-500': !!selectedCards.find(
@@ -270,7 +273,7 @@ function Game() {
               boxShadow: '0px 0px 40px 10px #a4ff7d',
             }}
             onClick={() => {
-              if (startedGame && game?.playerTurn === p1.id) {
+              if (startedGame && myTurn) {
                 // If it's the current player's turn, draw 1 card from deck
                 Palace.drawFromDeckToHand(
                   game?.id,
@@ -282,7 +285,7 @@ function Game() {
               }
             }}
             className={clsx({
-              [styles.handCard]: startedGame && game?.playerTurn === p1.id,
+              [styles.handCard]: startedGame && myTurn,
             })}
           />
         )}
