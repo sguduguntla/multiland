@@ -91,23 +91,18 @@ function Game() {
 
   console.log('MY PLAYERS', players);
 
-  console.log(players);
-
-  const myPlayerIdx = players.findIndex(
+  const p1 = players.find(
     (p) =>
       p.id ===
       (typeof window !== 'undefined' && localStorage.getItem('playerId'))
   );
+  const p2 = players.find(
+    (p) =>
+      p.id !==
+      (typeof window !== 'undefined' && localStorage.getItem('playerId'))
+  );
 
-  let p1: any, p2: any;
-
-  if (myPlayerIdx === 0) {
-    p1 = players[0];
-    p2 = players[1];
-  } else {
-    p1 = players[1];
-    p2 = players[0];
-  }
+  console.log('P1', p1, 'P2', p2);
 
   const myHand = p1.hand;
   const myTurn = game?.playerTurn === p1.id;
