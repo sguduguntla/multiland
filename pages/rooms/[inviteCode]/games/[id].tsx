@@ -85,24 +85,24 @@ function Game() {
     () => unsubscribers.map((u) => u());
   }, [game?.id, players?.length]);
 
-  if (!room || !players?.length || !game) {
-    return <div>loading...</div>;
-  }
-
   console.log('MY PLAYERS', players);
 
-  const p1 = players.find(
+  const p1 = players?.find(
     (p) =>
       p.id ===
       (typeof window !== 'undefined' && localStorage.getItem('playerId'))
   );
-  const p2 = players.find(
+  const p2 = players?.find(
     (p) =>
       p.id !==
       (typeof window !== 'undefined' && localStorage.getItem('playerId'))
   );
 
   console.log('P1', p1, 'P2', p2);
+
+  if (!room || !players?.length || !game || !p1 || !p2) {
+    return <div>loading...</div>;
+  }
 
   const myHand = p1.hand;
   const myTurn = game?.playerTurn === p1.id;
