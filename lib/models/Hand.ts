@@ -53,4 +53,8 @@ export class Hand {
         });
     }
 
+    public addCard(card: Card): void {
+        this._cards.push(card);
+    }
+
 }

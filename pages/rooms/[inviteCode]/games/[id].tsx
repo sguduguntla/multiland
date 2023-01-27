@@ -11,6 +11,7 @@ import db, {
   getDocFetcher,
 } from '../../../../lib/firebase';
 import { Card } from '../../../../lib/models/Card';
+import { Deck } from '../../../../lib/models/Deck';
 import { Hand } from '../../../../lib/models/Hand';
 import {
   INIT_FACE_DOWN_CARDS_PER_PLAYER,
@@ -109,8 +110,9 @@ function Game() {
   }
 
   const myHand = p1.hand;
-  const startedGame = !!(p1.chosenFaceUp && p2.chosenFaceUp);
   const myTurn = game?.playerTurn === p1.id;
+  const isGameOver = game?.status === 'GAME_OVER';
+  const startedGame = !!(p1.chosenFaceUp && p2.chosenFaceUp) && !isGameOver; //whther game is in progress
 
   const renderHand = (player: any) => {
     const hand = new Hand(player.hand);
@@ -229,6 +231,22 @@ function Game() {
                       marginRight: faceUpCard ? 40 : 0,
                       position: 'absolute',
                     }}
+                    onClick={() => {
+                      if (startedGame && myTurn && hand.size === 0) {
+                        // If hand is empty
+                        Palace.withdrawFaceDownCard(
+                          game?.id,
+                          p1.id,
+                          p2.id,
+                          new Deck(player.faceDown),
+                          faceDownCard
+                        );
+                      }
+                    }}
+                    className={clsx({
+                      [styles.handCard]:
+                        startedGame && myTurn && hand.size === 0,
+                    })}
                   />
                 )}
               </div>
@@ -260,7 +278,7 @@ function Game() {
             }}
           >
             {game.activeDeck
-              .slice(game?.activeDeck?.length - 4)
+              .slice(Math.max(game?.activeDeck?.length - 4, 0))
               .map((c: any, i: number) => {
                 const card = new Card(c.suit, c.rank);
 
@@ -307,7 +325,7 @@ function Game() {
               }
             }}
             className={clsx({
-              [styles.handCard]: startedGame && myTurn,
+              [styles.handCard]: startedGame && myTurn && !hand.allDisabled,
             })}
           />
         )}
@@ -316,6 +334,14 @@ function Game() {
   };
 
   const renderMessage = () => {
+    if (isGameOver) {
+      if (p1?.id === game?.lastWinner) {
+        return <h1>Wooohooo!! You won the game!</h1>;
+      } else {
+        return <h1>{p1?.name} won the game! Good luck next time!</h1>;
+      }
+    }
+
     if (!p1.chosenFaceUp) {
       const remainingCards = INIT_FACE_DOWN_CARDS_PER_PLAYER - p1.faceUp.length;
 

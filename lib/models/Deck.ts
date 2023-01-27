@@ -49,6 +49,16 @@ export class Deck {
         return hands;
     }
 
+    public withdraw(card: Card): Card | undefined {
+        const idx = this._cards.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
+        let removedCard = undefined;
+        if (idx > -1) {
+            const removedCards = this._cards.splice(idx, 1); // 2nd parameter means remove one item only
+            removedCard = removedCards?.[0];
+        }
+        return removedCard;
+    }
+
     get cards(): Card[] {
         return this._cards;
     }
