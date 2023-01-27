@@ -190,10 +190,24 @@ export class Palace {
     }
 
     // Need to figure out how to check if face down card is valid or not before adding it to the active deck
-    static async updateActiveDeckState(activeDeck: Deck, faceDownDeck: Deck, card: Card, gameId: string, p1Id: string, p2Id: string) {
+    static async updateActiveDeckState(activeDeck: Deck, faceDownDeck: Deck, gameId: string, p1Id: string, p2Id: string) {
         if (activeDeck.size === 0) {
             return;
         }
+
+        await updateDoc(doc(db, `games/${gameId}`), {
+            activeDeck: activeDeck.serialize
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 2000))
+
+        const oldDeck = new Deck(activeDeck.serialize);
+        const oldDeckSerialized = oldDeck.serialize;
+        oldDeckSerialized.pop();
+
+        await updateDoc(doc(db, `games/${gameId}`), {
+            activeDeck: oldDeckSerialized
+        });
 
         let isValid = false;
         const p2Doc = await getDoc(doc(db, `games/${gameId}/players/${p2Id}`));
@@ -281,6 +295,7 @@ export class Palace {
                     if (faceDownDeck.size > 0) {
                         // Switch turn
                         updateDoc(doc(db, `games/${gameId}`), {
+                            activeDeck: activeDeck.serialize,
                             playerTurn: p2Id
                         });
                     }
@@ -300,6 +315,7 @@ export class Palace {
                     if (faceDownDeck.size > 0) {
                         // Switch turn
                         updateDoc(doc(db, `games/${gameId}`), {
+                            activeDeck: activeDeck.serialize,
                             playerTurn: p2Id
                         });
                     }
@@ -336,6 +352,7 @@ export class Palace {
                         if (faceDownDeck.size > 0) {
                             // Switch turn
                             updateDoc(doc(db, `games/${gameId}`), {
+                                activeDeck: activeDeck.serialize,
                                 playerTurn: p2Id
                             });
                         }
@@ -355,6 +372,7 @@ export class Palace {
                         if (faceDownDeck.size > 0) {
                             // Switch turn
                             updateDoc(doc(db, `games/${gameId}`), {
+                                activeDeck: activeDeck.serialize,
                                 playerTurn: p2Id
                             });
                         }
@@ -448,7 +466,7 @@ export class Palace {
 
         const activeDeck = [...(gameDoc.data()?.activeDeck || []), card.serialize];
 
-        this.updateActiveDeckState(new Deck(activeDeck), faceDownDeck, card, gameId, p1Id, p2Id);
+        this.updateActiveDeckState(new Deck(activeDeck), faceDownDeck, gameId, p1Id, p2Id);
     }
 
     static async drawFromDeckToHand(gameId: string, p1Id: string, p2Id: string, hand: Hand, numCards: number) {

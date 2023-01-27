@@ -115,11 +115,9 @@ function Game() {
   const startedGame = !!(p1.chosenFaceUp && p2.chosenFaceUp) && !isGameOver; //whther game is in progress
 
   const renderHand = (player: any) => {
-    const hand = new Hand(player.hand);
-
     return player.hand.map((c: any, i: number) => {
       const card = new Card(c.suit, c.rank, c.disabled);
-      const imageSrc = card.image;
+      const imageSrc = player.id === p1.id ? card.image : Images.cards.back;
       return (
         <Image
           src={imageSrc}
@@ -438,7 +436,7 @@ function Game() {
           <div className="grow"></div>
           {renderActiveDeck()}
           <div className="grow"></div>
-          <div className="text-center text-white flex-none items-center w-full">
+          <div className="text-center text-white flex flex-col justify-center items-center w-full">
             {renderDownCards(p1)}
             <div className="flex flex-row justify-center space-x-4 my-4">
               {renderHand(p1)}
