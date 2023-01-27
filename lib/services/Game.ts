@@ -21,6 +21,7 @@ export class GameService {
 
         for (const player of players) {
             addDoc(collection(db, `games/${game.id}/players`), {
+                playerId: player.id,
                 name: player.name,
                 hand: [],
                 faceDown: [],

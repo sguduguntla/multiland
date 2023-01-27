@@ -8,14 +8,14 @@ import useSWR from 'swr';
 import useWindowDimensions from '../../../../hooks/useWindowDimensions';
 import db, {
   getCollectionFetcher,
-  getDocFetcher,
+  getDocFetcher
 } from '../../../../lib/firebase';
 import { Card } from '../../../../lib/models/Card';
 import { Deck } from '../../../../lib/models/Deck';
 import { Hand } from '../../../../lib/models/Hand';
 import {
   INIT_FACE_DOWN_CARDS_PER_PLAYER,
-  Palace,
+  Palace
 } from '../../../../lib/services/palace/Palace';
 import { RoomService } from '../../../../lib/services/Room';
 import styles from '../../../../styles/Game.module.css';
@@ -89,12 +89,12 @@ function Game() {
 
   const p1 = players?.find(
     (p) =>
-      p.id ===
+      p.playerId ===
       (typeof window !== 'undefined' && localStorage.getItem('playerId'))
   );
   const p2 = players?.find(
     (p) =>
-      p.id !==
+      p.playerId !==
       (typeof window !== 'undefined' && localStorage.getItem('playerId'))
   );
 
